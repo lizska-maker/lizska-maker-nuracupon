@@ -618,12 +618,35 @@
     </main>
 
     <script>
+        // Проверка при загрузке страницы: если сертификат уже использован, меняем кнопку
+        document.addEventListener('DOMContentLoaded', () => {
+            const forms = document.querySelectorAll('form');
+            forms.forEach(form => {
+                const cardId = form.getAttribute('onsubmit').match(/'(card-\d+)'/)[1];
+                if (localStorage.getItem('used_' + cardId)) {
+                    disableForm(form);
+                }
+            });
+        });
+
+        // Функция блокировки формы
+        function disableForm(form) {
+            const submitBtn = form.querySelector('.submit-btn');
+            submitBtn.innerHTML = 'Сертификат уже использован 💖';
+            submitBtn.style.backgroundColor = '#8c7b72'; // Серый цвет
+            submitBtn.style.cursor = 'not-allowed';
+            submitBtn.disabled = true;
+            
+            // Блокируем поля ввода
+            form.querySelectorAll('input, textarea').forEach(input => input.disabled = true);
+        }
+
         // Надежный переворот карточки
         function flipCard(id) {
             document.getElementById(id).classList.add('flipped');
         }
 
-        // Закрытие карточки (event.stopPropagation чтобы клик не конфликтовал)
+        // Закрытие карточки
         function unflipCard(event, id) {
             if (event) event.stopPropagation();
             document.getElementById(id).classList.remove('flipped');
@@ -660,19 +683,25 @@
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = 'Сертификаты_Дананг.html';
+            a.download = 'Сертификаты_Дананг_Final.html';
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
             URL.createObjectURL(url);
 
             panel.style.display = 'block';
-            alert('🎉 Готово! Новый файл "Сертификаты_Дананг.html" скачан.\n\nТеперь твои фото навсегда вшиты внутрь кода! Можешь отправлять этот файл подруге.');
+            alert('🎉 Готово! Новый файл "Сертификаты_Дананг_Final.html" скачан.\n\nТеперь твои фото навсегда вшиты внутрь кода!');
         }
 
         // Отправка в Telegram
         async function sendTelegram(event, form, certName, cardId) {
             event.preventDefault();
+
+            // Проверяем, не использован ли сертификат ранее
+            if (localStorage.getItem('used_' + cardId)) {
+                alert('Этот сертификат уже был активирован ранее! ❤️');
+                return;
+            }
 
             const submitBtn = form.querySelector('.submit-btn');
             const originalText = submitBtn.innerHTML;
@@ -683,6 +712,7 @@
             const place = form.querySelector('.input-place').value;
             const wishes = form.querySelector('.input-wishes').value.trim() || 'Пожеланий нет, главное — вместе!';
 
+            // Твои данные бота
             const token = '8372076540:AAH3idkq1sbwEwrBYZODQgJQW3mT7SZ-2Lo';
             const chatId = '-1003960666127';
 
@@ -706,19 +736,19 @@
                 if (response.ok) {
                     submitBtn.innerHTML = 'Заявка принята! ❤️ Скоро увидимся';
                     submitBtn.style.backgroundColor = '#5d7a68';
-                    form.reset();
+                    
+                    // СОХРАНЯЕМ ИНФОРМАЦИЮ ОБ ИСПОЛЬЗОВАНИИ В ПАМЯТЬ БРАУЗЕРА
+                    localStorage.setItem('used_' + cardId, 'true');
 
                     setTimeout(() => {
-                        submitBtn.innerHTML = originalText;
-                        submitBtn.style.backgroundColor = '';
-                        submitBtn.disabled = false;
                         unflipCard(null, cardId);
+                        disableForm(form); // Навсегда блокируем форму после отправки
                     }, 3000);
                 } else {
                     throw new Error('Ошибка сети Telegram');
                 }
             } catch (error) {
-                alert('Не удалось отправить сообщение в Telegram. Проверь интернет или права бота в чате!');
+                alert('Не удалось отправить сообщение в Telegram. Проверь интернет!');
                 submitBtn.innerHTML = originalText;
                 submitBtn.disabled = false;
             }
